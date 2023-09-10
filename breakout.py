@@ -9,7 +9,7 @@ import torch
 
 class DQNBreakout(gym.Wrapper):
 
-    def __init__(self, render_mode='rgb_array', repeat=4, clip_reward=False, no_ops=0,
+    def __init__(self, render_mode='rgb_array', repeat=4, no_ops=0,
                  fire_first=False, device='cpu'):
         env = gym.make("BreakoutNoFrameskip-v4", render_mode=render_mode)
 
@@ -19,10 +19,10 @@ class DQNBreakout(gym.Wrapper):
         self.image_shape = (84,84)
 
         self.frame_buffer = []
-        self.clip_reward = clip_reward
         self.no_ops = no_ops
         self.fire_first = fire_first
         self.device = device
+        self.lives = env.ale.lives()
 
     def step(self, action):
         total_reward = 0
@@ -32,7 +32,16 @@ class DQNBreakout(gym.Wrapper):
         # averaging over the last 2 to remove stutter in the Atari library.
         for i in range(self.repeat):
             observation, reward, done, truncated, info = self.env.step(action)
+
             total_reward += reward
+
+            current_lives = info['lives']
+
+            if current_lives < self.lives:
+                total_reward = total_reward - 1
+                self.lives = current_lives
+
+                # print(f"Current reward: {total_reward} Lives: {self.lives}")
 
             self.frame_buffer.append(observation)
 
@@ -54,6 +63,9 @@ class DQNBreakout(gym.Wrapper):
     def reset(self):
         self.frame_buffer = []
         observation, _ = self.env.reset()
+
+        self.lives = self.env.ale.lives()
+
         observation = self.process_observation(observation)
 
         return observation

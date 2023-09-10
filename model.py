@@ -4,7 +4,7 @@ import torch.nn as nn
 
 class AtariNet(nn.Module):
 
-    def __init__(self, nb_actions=6):
+    def __init__(self, nb_actions=4):
 
         super(AtariNet, self).__init__()
 
@@ -18,11 +18,18 @@ class AtariNet(nn.Module):
 
         self.dropout = nn.Dropout(p=0.2)
 
-        self.fc1 = nn.Linear(3136, 1024)
+        self.action_value1 = nn.Linear(3136, 1024)
 
-        self.fc2 = nn.Linear(1024, 2048)
+        self.action_value2 = nn.Linear(1024, 1024)
 
-        self.output = nn.Linear(2048, nb_actions)
+        self.action_value3 = nn.Linear(1024, nb_actions)
+
+        self.state_value1 = nn.Linear(3136, 1024)
+
+        self.state_value2 = nn.Linear(1024, 1024)
+
+        self.state_value3 = nn.Linear(1024, 1)
+
 
     def forward(self, x):
         x = torch.Tensor(x)
@@ -30,12 +37,23 @@ class AtariNet(nn.Module):
         x = self.relu(self.conv2(x))
         x = self.relu(self.conv3(x))
         x = self.flatten(x)
-        x = self.relu(self.fc1(x))
-        x = self.dropout(x)
-        x = self.relu(self.fc2(x))
-        x = self.dropout(x)
-        x = self.output(x)
-        return x
+        state_value = self.relu(self.state_value1(x))
+        state_value = self.dropout(state_value)
+        state_value = self.relu(self.state_value2(state_value))
+        state_value = self.dropout(state_value)
+        state_value = self.relu(self.state_value3(state_value))
+        state_value = self.dropout(state_value)
+
+        action_value = self.relu(self.action_value1(x))
+        action_value = self.dropout(action_value)
+        action_value = self.relu(self.action_value2(action_value))
+        action_value = self.dropout(action_value)
+        action_value = self.relu(self.action_value3(action_value))
+        action_value = self.dropout(action_value)
+
+        output = state_value + (action_value - action_value.mean())
+
+        return output
 
     def save_the_model(self, weights_filename='models/latest.pt'):
         # Take the default weights filename(latest.pt) and save it

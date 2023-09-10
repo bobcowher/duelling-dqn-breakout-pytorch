@@ -36,8 +36,8 @@ model.load_the_model(weights_filename=input_file)
 
 agent = Agent(model=model,
               device=device,
-              epsilon=0.01,
-              min_epsilon=0.01,
+              epsilon=0.05,
+              min_epsilon=0.05,
               nb_warmup=50, # originally 10000
               nb_actions=4,
               memory_capacity=20000,

@@ -4,6 +4,8 @@ import copy
 import torch.optim as optim
 import torch.nn.functional as F
 import time
+import numpy as np
+from plot import *
 
 class ReplayMemory:
 
@@ -21,14 +23,8 @@ class ReplayMemory:
         if len(self.memory) < self.capacity:
             self.memory.append(transition)
         else:
-            # print(f"Removing memory item {self.memory[0]}")
             self.memory.remove(self.memory[0])
             self.memory.append(transition)
-            # print(f"New oldest item is {self.memory[0]}")
-
-        if len(self.memory) > self.memory_max_report:
-            print(f"Memory size currently {len(self.memory)}")
-            self.memory_max_report += 1000
 
     def sample(self, batch_size):
         assert self.can_sample(batch_size)
@@ -58,7 +54,7 @@ class Agent:
         self.gamma = 0.99
         self.nb_actions = nb_actions
 
-        self.optimizer = optim.RMSprop(model.parameters(), lr=learning_rate)
+        self.optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
 
         print(f"Starting epsilon is {self.epsilon}")
         print(f"Epsilon decay is {self.epsilon_decay}")
@@ -71,7 +67,10 @@ class Agent:
             return torch.argmax(av, dim=-1, keepdim=True)
 
     def train(self, env, epochs):
-        stats = {'MSELoss': [], 'Returns': []}
+        stats = {'Returns': [], 'AvgReturns': [], 'EpsilonCheckpoint': []}
+
+
+        plotter = LivePlot()
 
         for epoch in range(1, epochs + 1):
             state = env.reset()
@@ -103,22 +102,31 @@ class Agent:
                 ep_return += reward.item()
 
             stats['Returns'].append(ep_return)
-            print("")
-            print(f"Epoch {epoch} out of {epochs} completed")
-            print(f"Epoch return: {ep_return}")
-            print(f"Epsilon is {self.epsilon}")
 
             if self.epsilon > self.min_epsilon:
                 self.epsilon = self.epsilon * self.epsilon_decay
 
             if epoch % 10 == 0:
-                self.target_model.load_state_dict(self.model.state_dict())
+                self.model.save_the_model()
+                print("")
 
-            #TODO factor this out and make save_the_model part of the model class. ETC violation
+                average_returns = np.mean(stats['Returns'][-100:])
+
+                stats['AvgReturns'].append(average_returns)
+                stats['EpsilonCheckpoint'].append(self.epsilon)
+
+                if (len(stats['Returns'])) > 100:
+                    print(f"Epoch: {epoch} - Average Return: {np.mean(stats['Returns'][-100:])} - Epsilon: {self.epsilon}")
+                else:
+                    print(f"Epoch: {epoch} - Episode Return: {np.mean(stats['Returns'][-1:])} - Epsilon: {self.epsilon}")
 
             if epoch % 100 == 0:
-                self.model.save_the_model()
+                self.target_model.load_state_dict(self.model.state_dict())
+                plotter.update_plot(stats)
+
+            if epoch % 1000 == 0:
                 self.model.save_the_model(f"models/model_iter_{epoch}.pt")
+
 
         return stats
 
@@ -130,7 +138,7 @@ class Agent:
         for epoch in range(1, 3):
             state = env.reset()
 
-
+            # Fire at the beginning of the test
             done = False
 
             for _ in range(1000):
