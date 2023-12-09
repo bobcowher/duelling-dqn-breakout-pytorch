@@ -25,14 +25,14 @@ agent = Agent(model=model,
               device=device,
               epsilon=1.0,
               min_epsilon=0.1,
-              nb_warmup=100, # was 5,000
+              nb_warmup=5000, # was 5,000
               nb_actions=4,
-              learning_rate=0.000001,
+              learning_rate=0.00001,
               memory_capacity=100000,
               batch_size=64)
 
 
-agent.train(env=environment, epochs=200000)
+agent.train(env=environment, epochs=1000000, batch_identifier=0)
 
 test_environment = DQNBreakout(device=device, render_mode='human')
 

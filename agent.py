@@ -5,7 +5,10 @@ import torch.optim as optim
 import torch.nn.functional as F
 import time
 import numpy as np
-from plot import *
+from torch.utils.tensorboard import SummaryWriter
+from datetime import datetime
+import os
+
 
 class ReplayMemory:
 
@@ -59,6 +62,9 @@ class Agent:
         print(f"Starting epsilon is {self.epsilon}")
         print(f"Epsilon decay is {self.epsilon_decay}")
 
+        if not os.path.exists("./tensorboard_logdir"):
+            os.makedirs("./tensorboard_logdir")
+
     def get_action(self, state):
         if torch.rand(1) < self.epsilon:
             return torch.randint(self.nb_actions, (1, 1))
@@ -66,11 +72,11 @@ class Agent:
             av = self.model(state).detach()
             return torch.argmax(av, dim=-1, keepdim=True)
 
-    def train(self, env, epochs):
+    def train(self, env, epochs, batch_identifier=0):
         stats = {'Returns': [], 'AvgReturns': [], 'EpsilonCheckpoint': []}
 
 
-        plotter = LivePlot()
+        writer = SummaryWriter(log_dir=f"./tensorboard_logdir/{datetime.now().strftime('%Y-%m-%d')}")
 
         for epoch in range(1, epochs + 1):
             state = env.reset()
@@ -101,6 +107,8 @@ class Agent:
                 state = next_state
                 ep_return += reward.item()
 
+            writer.add_scalar(f'Returns: {batch_identifier}', ep_return, epoch)
+
             stats['Returns'].append(ep_return)
 
             if self.epsilon > self.min_epsilon:
@@ -122,7 +130,6 @@ class Agent:
 
             if epoch % 100 == 0:
                 self.target_model.load_state_dict(self.model.state_dict())
-                plotter.update_plot(stats)
 
             if epoch % 1000 == 0:
                 self.model.save_the_model(f"models/model_iter_{epoch}.pt")
