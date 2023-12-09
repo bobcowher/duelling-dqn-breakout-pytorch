@@ -42,14 +42,12 @@ class AtariNet(nn.Module):
         state_value = self.relu(self.state_value2(state_value))
         state_value = self.dropout(state_value)
         state_value = self.relu(self.state_value3(state_value))
-        state_value = self.dropout(state_value)
 
         action_value = self.relu(self.action_value1(x))
         action_value = self.dropout(action_value)
         action_value = self.relu(self.action_value2(action_value))
         action_value = self.dropout(action_value)
         action_value = self.relu(self.action_value3(action_value))
-        action_value = self.dropout(action_value)
 
         output = state_value + (action_value - action_value.mean())
 
